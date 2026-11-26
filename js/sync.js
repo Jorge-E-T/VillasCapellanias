@@ -14,6 +14,22 @@
   const MAX_DOC = 900000;
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const configured = (c) => !!(c && c.apiKey && c.projectId && c.appId && !/PASTE_/.test(JSON.stringify(c)));
+  const KEYS = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId', 'measurementId'];
+  let cfgNote = '';
+  /** Read firebase-config.js as text, so any pasted format works: the app's own,
+      Firebase's snippet with import lines and "const firebaseConfig", quoted or unquoted keys. */
+  async function readConfigFile() {
+    try {
+      const r = await fetch('firebase-config.js', { cache: 'no-store' });
+      if (!r.ok) { cfgNote = `firebase-config.js could not be loaded (error ${r.status}). Check it is uploaded next to index.html.`; return null; }
+      const txt = await r.text(); const out = {};
+      KEYS.forEach((k) => { const m = new RegExp(`["']?${k}["']?\\s*:\\s*["'\u201c\u201d]([^"'\u201c\u201d]+)["'\u201c\u201d]`).exec(txt); if (m) out[k] = m[1].trim(); });
+      const missing = ['apiKey', 'projectId', 'appId'].filter((k) => !out[k] || /PASTE_/.test(out[k]));
+      if (missing.length) { cfgNote = `firebase-config.js was found, but these values are missing or still say PASTE_: ${missing.join(', ')}.`; return null; }
+      if (!out.authDomain) out.authDomain = out.projectId + '.firebaseapp.com';
+      return out;
+    } catch (e) { cfgNote = 'firebase-config.js could not be read: ' + e.message; return null; }
+  }
 
   let api = null, cfg = null, cfgOk = false, loadErr = null, inited = false;
   let fb = null, auth = null, db = null;
@@ -59,7 +75,7 @@
     if (pill) { pill.classList.toggle('hidden', !!st.hidden); pill.className = 'sync-pill cs-' + st.kind + (st.hidden ? ' hidden' : ''); pill.textContent = st.text; pill.title = 'Cloud sync — click for details'; }
     const el = document.getElementById('cloudCard'); if (!el) return;
     if (el.querySelector('input:focus')) { const s = document.getElementById('csStatus'); if (s) s.textContent = st.text; return; }
-    if (!cfgOk) { el.innerHTML = `<div class="callout"><b>Not set up yet.</b> The file <code>firebase-config.js</code> in the app’s folder still has the PASTE_ placeholders. Follow the setup guide, Part 4 (“Cloud sync with Firebase”), then upload the filled-in file to GitHub.</div>`; return; }
+    if (!cfgOk) { el.innerHTML = `<div class="callout"><b>Not set up yet.</b> ${esc(cfgNote || 'The file firebase-config.js still has the PASTE_ placeholders.')} See the setup guide, Part 5.2. After fixing it on GitHub, wait a minute and reload this page.</div>`; return; }
     if (loadErr) { el.innerHTML = `<div class="callout callout-bad"><b>Cloud unavailable.</b> ${esc(loadErr)} The app keeps working on this device.</div>`; return; }
     if (!user) {
       el.innerHTML = `<div class="form cs-form"><p class="small">Sign in with the cloud e-mail and password created for you in Firebase (this is not your Gmail password). Each device signs in once and stays signed in.</p>
@@ -230,6 +246,7 @@
       window.addEventListener('online', () => { offline = false; render(); if (running) schedule(500); });
       window.addEventListener('offline', () => { offline = true; render(); });
       cfg = global.FIREBASE_CONFIG || null; cfgOk = configured(cfg);
+      if (!cfgOk) { const fromFile = await readConfigFile(); if (fromFile) { cfg = fromFile; cfgOk = true; } }
       if (!cfgOk) { render(); return; }
       try {
         if (!global.firebase) for (const src of LIB) await loadScript(src);
