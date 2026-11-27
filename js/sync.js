@@ -196,7 +196,7 @@
       const tomb = snap.tombstones || {};
       let mode = 'normal';
       if (!L.on) {
-        const lc = snap.records.filter((r) => r._c !== 'settings' && r._c !== 'activity').length;
+        const lc = snap.records.filter((r) => r.updatedAt && !['settings', 'activity', 'legalcfg'].includes(r._c)).length;
         const cc = Object.values(mirror).filter((d) => !d.d).length;
         if (lc && cc) {
           const r = await api.firstConnect({ local: lc, cloud: cc });

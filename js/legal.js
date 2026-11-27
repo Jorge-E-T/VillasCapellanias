@@ -32,13 +32,19 @@
     lessorStreet: '', lessorCity: '', signerName: '', signerTitle: 'President', paymentAddress: '',
     attorneyName: '', attorneyStreet: '', attorneyCity: '', attorneyPhone: '',
     bankName: '', bankAddress: '', bankAccount: '', bankAccountTitle: '',
-    trackFrom: U.todayISO(), moveInDays: 5, extensionDays: 30, noticeAfterDays: 3, extraHolidays: ''
+    trackFrom: LEGAL_START, moveInDays: 5, extensionDays: 30, noticeAfterDays: 3, extraHolidays: ''
   });
+  /* The landlord / attorney / bank details are their own record ("legal-settings"), separate from the
+     other settings, so a change made elsewhere — or on another device — never overwrites them. */
+  const LEGAL_START = '2026-11-27';
   const S = () => {
-    if (!D.settings.legal) D.settings.legal = DEFAULTS();
-    const d = DEFAULTS(); for (const k of Object.keys(d)) if (D.settings.legal[k] === undefined) D.settings.legal[k] = d[k];
-    return D.settings.legal;
+    let r = D.legalcfg.find((x) => x.id === 'legal-settings');
+    if (!r) { r = { _c: 'legalcfg', id: 'legal-settings', ...DEFAULTS(), ...(D.settings.legal || {}) }; M.upsert(r); }
+    const d = DEFAULTS(); for (const k of Object.keys(d)) if (r[k] === undefined) r[k] = d[k];
+    return r;
   };
+  /** Save the legal details without redrawing the page, so nothing being typed is lost. */
+  const saveCfg = (label, quiet) => A().save({ ...S() }, { noRender: true, silent: !!quiet, label: label || 'Legal settings' });
 
   /* ---------------- words, dates, holidays ---------------- */
   const ONES = ['ZERO', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN', 'ELEVEN', 'TWELVE', 'THIRTEEN', 'FOURTEEN', 'FIFTEEN', 'SIXTEEN', 'SEVENTEEN', 'EIGHTEEN', 'NINETEEN'];
@@ -73,6 +79,15 @@
   const isHoliday = (iso) => holidays(+iso.slice(0, 4)).has(iso);
   const isBusiness = (iso) => { const d = U.parseISO(iso).getDay(); return d !== 0 && d !== 6 && !isHoliday(iso); };
   /** Last day to pay: N business days after delivery (not counting the day of delivery). */
+  /** Plain-language count: the posting day is not counted, weekends and holidays are skipped. */
+  function explainDeadline(deliveryISO, n = 3) {
+    if (!deliveryISO) return '';
+    const day = (iso) => U.parseISO(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const parts = [`Posted ${day(deliveryISO)} (not counted)`]; const skipped = [];
+    let d = deliveryISO, k = 0;
+    while (k < n) { d = U.addDays(d, 1); if (isBusiness(d)) { k++; parts.push(`day ${k}: ${day(d)}`); } else skipped.push(day(d) + (isHoliday(d) ? ' (holiday)' : '')); }
+    return parts.join(' · ') + (skipped.length ? ` · skipped: ${skipped.join(', ')}` : '') + ` → pay or leave by ${day(d)}.`;
+  }
   function noticeDeadline(deliveryISO, n = 3) { let d = deliveryISO, k = 0; while (k < n) { d = U.addDays(d, 1); if (isBusiness(d)) k++; } return d; }
 
   /* ---------------- tenants ---------------- */
@@ -262,11 +277,11 @@
     };
   }
   const SETTINGS_NEEDED = {
-    lease: ['signerName', 'paymentAddress'], deposit: ['lessorStreet', 'lessorCity', 'signerName', 'bankName', 'bankAddress', 'bankAccount', 'bankAccountTitle'],
+    lease: ['signerName', 'signerTitle', 'paymentAddress'], deposit: ['lessorStreet', 'lessorCity', 'signerName', 'signerTitle', 'bankName', 'bankAddress', 'bankAccount', 'bankAccountTitle'],
     threeday: ['attorneyName', 'attorneyStreet', 'attorneyCity', 'attorneyPhone', 'landlordName', 'landlordStreet', 'landlordCity', 'landlordPhone'],
-    extension: ['signerName'], renewal: ['landlordName', 'landlordStreet', 'landlordCity', 'landlordPhone']
+    extension: ['signerName', 'signerTitle'], renewal: ['landlordName', 'landlordStreet', 'landlordCity', 'landlordPhone', 'landlordFax']
   };
-  const SETTING_LABEL = { signerName: 'person who signs for the Lessor', paymentAddress: 'address where rent is paid', lessorStreet: 'Lessor street address', lessorCity: 'Lessor city/state/ZIP', bankName: 'deposit bank', bankAddress: 'bank address', bankAccount: 'deposit account number', bankAccountTitle: 'account title', attorneyName: 'attorney name', attorneyStreet: 'attorney street', attorneyCity: 'attorney city', attorneyPhone: 'attorney phone', landlordName: 'landlord name', landlordStreet: 'landlord street', landlordCity: 'landlord city', landlordPhone: 'landlord phone' };
+  const SETTING_LABEL = { signerTitle: 'signer’s title', landlordFax: 'landlord fax (optional)', signerName: 'person who signs for the Lessor', paymentAddress: 'address where rent is paid', lessorStreet: 'Lessor street address', lessorCity: 'Lessor city/state/ZIP', bankName: 'deposit bank', bankAddress: 'bank address', bankAccount: 'deposit account number', bankAccountTitle: 'account title', attorneyName: 'attorney name', attorneyStreet: 'attorney street', attorneyCity: 'attorney city', attorneyPhone: 'attorney phone', landlordName: 'landlord name', landlordStreet: 'landlord street', landlordCity: 'landlord city', landlordPhone: 'landlord phone' };
 
   /** Inputs shown in the dialog for a packet, prefilled from the tenant, unit and task. */
   function inputsFor(packet, t, u, task) {
@@ -290,7 +305,7 @@
       const deliver = today;
       return [...base, { k: 'month', label: 'First unpaid month', type: 'month', value: k }, { k: 'dueDate', label: 'Rent was due on', type: 'date', value: st.due }, { k: 'amount', label: 'Rent owed (rent only, no late fees)', type: 'money', value: owed, note: months.length > 1 ? `Covers ${months.length} unpaid months.` : '' },
         { k: 'periodStart', label: 'Rental period from', type: 'date', value: k + '-01' }, { k: 'periodEnd', label: 'to midnight of', type: 'date', value: U.monthEnd(kl) },
-        { k: 'noticeDate', label: 'Notice date', type: 'date', value: today }, { k: 'delivery', label: 'Will be delivered on', type: 'date', value: deliver }, { k: 'deadline', label: 'Pay or leave by (3 business days)', type: 'date', value: noticeDeadline(deliver, 3), note: 'Skips weekends and legal holidays. Recalculated when the delivery date changes.' }];
+        { k: 'noticeDate', label: 'Notice date', type: 'date', value: today }, { k: 'delivery', label: 'Date it will be posted or handed to the tenant', type: 'date', value: deliver, note: 'Use the actual day it will be served. That day is not counted.' }, { k: 'deadline', label: 'Pay or leave by (3 business days)', type: 'date', value: noticeDeadline(deliver, 3), note: 'Worked out from the posting date. Weekends and legal holidays are skipped.' }];
     }
     if (packet === 'extension') {
       const term = task && task.term ? task.term : { start: t.leaseEnd ? U.addDays(t.leaseEnd, 1) : addYears(leaseStart(t) || today, 1) }; if (!term.end) term.end = U.addDays(addYears(term.start, 1), -1);
@@ -321,6 +336,8 @@
   /** Create the documents of a packet: prefilled form → Word files → record. */
   async function create(packet, tenant, task) {
     const t = tenant; const u = unitOf(t); const P = PACKETS[packet];
+    // a document made outside a reminder still fulfils the matching reminder
+    if (!task) task = tasks().find((x) => x.tenant.id === t.id && x.packet === packet) || null;
     const ins = inputsFor(packet, t, u, task);
     const s = S();
     const needs = [...new Set(P.docs.flatMap((k) => SETTINGS_NEEDED[k] || []))].filter((k) => !String(s[k] || '').trim());
@@ -332,23 +349,35 @@
     };
     const body = U.h(`<form class="form legal-form" autocomplete="off">
       <p class="dialog-text">${P.docs.map((k) => `<b>${U.esc(DOCS[k].title)}</b>`).join(' + ')} for ${U.esc(t.name)}, Apt ${U.esc(u.number)}. Check the details, then download the Word ${P.docs.length > 1 ? 'files' : 'file'}.</p>
-      ${needs.length ? `<div class="callout callout-warn">Missing in Settings → Legal: ${needs.map((k) => SETTING_LABEL[k] || k).join(', ')}. Those spots will be left blank. <a href="#/settings?tab=legal">Fill them in</a>.</div>` : ''}
+      ${P.docs.length > 1 ? `<div class="doc-pick"><span class="small muted">Documents to create</span>${P.docs.map((k) => `<label class="check"><input type="checkbox" data-doc="${k}" checked/><span>${U.esc(DOCS[k].title)}</span></label>`).join('')}${packet === 'extension' ? '<small class="muted">The cover letter explains a rent increase; untick it if the rent stays the same.</small>' : ''}</div>` : ''}
+      ${task ? `<p class="small muted">This takes care of the reminder “${U.esc(task.title)}” (${task.state === 'overdue' ? 'overdue since' : 'due'} ${U.fmtDate(task.due)}).</p>` : ''}
       <div class="row2">${ins.map(field).join('')}</div>
+      ${packet === 'threeday' ? '<p class="callout small" id="dlBreak"></p>' : ''}
+      ${(() => { const keys = [...new Set(P.docs.flatMap((k) => SETTINGS_NEEDED[k] || []))]; if (!keys.length) return ''; const groups = [['Attorney', /^attorney/], ['Landlord', /^landlord/], ['Lessor and signer', /^(signer|lessor|payment)/], ['Security deposit account', /^bank/]];
+        return `<details class="cfg-box"${needs.length ? ' open' : ''}><summary><b>Landlord, attorney and bank details</b> <span class="small muted">saved once and used on every document${needs.length ? ` · ${needs.length} missing` : ''}</span></summary>
+          ${groups.map(([g, rx]) => { const ks = keys.filter((k) => rx.test(k)); return ks.length ? `<h4 class="form-h">${g}</h4><div class="row2">${ks.map((k) => `<label class="field"><span>${U.esc(cap1(SETTING_LABEL[k] || k))}</span><input name="cfg_${k}" value="${U.esc(s[k] || '')}"${k === 'landlordFax' ? '' : ' required'}/></label>`).join('')}</div>` : ''; }).join('')}
+          <p class="small muted">Changes here are saved for next time (also in Settings → Legal).</p></details>`; })()}
       ${(() => { const roles = [...new Set(P.docs.map((k) => DOC_SIG[k]).filter(Boolean))].filter((r) => (sigs()[r] || {}).mode && sigs()[r].mode !== 'none'); return roles.length ? `<label class="check"><input type="checkbox" name="sign" checked/><span>Add the saved signature (${roles.map((r) => SIG_ROLES[r].label.toLowerCase()).join(', ')})</span></label>` : (P.docs.some((k) => DOC_SIG[k]) ? '<p class="small muted">No saved signature yet: the signature line stays blank. Add one in Settings → Legal → Signatures.</p>' : ''); })()}
       ${packet === 'lease' ? '<label class="check"><input type="checkbox" name="saveTenant" checked/><span>Save the lease dates, people and parking space to the tenant’s record</span></label>' : ''}
       <p class="form-err lock-error"></p></form>`);
+    const showBreak = () => { const el = U.$('#dlBreak', body); if (el) el.textContent = explainDeadline(U.$('[name=delivery]', body).value); };
     if (packet === 'threeday') body.addEventListener('change', (e) => {
-      if (e.target.name === 'delivery' && e.target.value) U.$('[name=deadline]', body).value = noticeDeadline(e.target.value, 3);
+      if (e.target.name === 'delivery' && e.target.value) { U.$('[name=deadline]', body).value = noticeDeadline(e.target.value, 3); showBreak(); }
       if (e.target.name === 'month' && e.target.value) { const k = e.target.value; const st = M.rentStatus(u, k); U.$('[name=dueDate]', body).value = st.due; U.$('[name=amount]', body).value = st.balance || st.expected; U.$('[name=periodStart]', body).value = k + '-01'; U.$('[name=periodEnd]', body).value = U.monthEnd(k); }
     });
     if (packet === 'lease') body.addEventListener('change', (e) => { if (e.target.name === 'termStart' && e.target.value) { U.$('[name=termEnd]', body).value = U.addDays(addYears(e.target.value, 1), -1); U.$('[name=firstPayment]', body).value = e.target.value; } });
     if (packet === 'extension') body.addEventListener('change', (e) => { if (e.target.name === 'termStart' && e.target.value) { U.$('[name=termEnd]', body).value = U.addDays(addYears(e.target.value, 1), -1); U.$('[name=firstPayment]', body).value = e.target.value; } });
     const v = await U.modal({
-      title: P.title + ' — Apt ' + u.number, body, size: 'lg',
+      title: P.title + ' — Apt ' + u.number, body, size: 'lg', onOpen: showBreak,
       buttons: [{ label: 'Cancel', value: null, cls: 'btn-ghost' }, {
         label: `Download Word ${P.docs.length > 1 ? 'files' : 'file'}`, cls: 'btn-primary', value: (b) => {
           const x = U.formValues(b);
+          const picked = U.$$('[data-doc]', b); x._docs = picked.length ? picked.filter((c) => c.checked).map((c) => c.dataset.doc) : P.docs;
+          if (!x._docs.length) return err(b, 'Tick at least one document.');
           if (!x.names) return err(b, 'Enter the tenant name(s).');
+          const empty = U.$$('[name^=cfg_][required]', b).filter((i) => !i.value.trim());
+          if (empty.length) { const box = U.$('.cfg-box', b); if (box) box.open = true; empty[0].focus(); return err(b, `Fill in the ${empty.map((i) => SETTING_LABEL[i.name.slice(4)] || i.name.slice(4)).join(', ')}. They are saved for every document after this.`); }
+          if (packet === 'threeday' && x.deadline && x.delivery && x.deadline < noticeDeadline(x.delivery, 3)) return err(b, `The deadline is too early: counting from ${U.fmtDate(x.delivery)}, it can’t be before ${U.fmtDate(noticeDeadline(x.delivery, 3))}.`);
           if (packet === 'threeday' && !(+x.amount > 0)) return err(b, 'Enter the rent owed.');
           if ((packet === 'lease' || packet === 'extension') && !(+x.monthly > 0)) return err(b, 'Enter the monthly rent.');
           return x;
@@ -356,9 +385,12 @@
       }]
     });
     if (!v) return null;
+    /* remember the landlord / attorney / bank details */
+    const cfg = {}; Object.keys(v).filter((k) => k.startsWith('cfg_')).forEach((k) => { cfg[k.slice(4)] = String(v[k] || '').trim(); delete v[k]; });
+    const changed = Object.keys(cfg).filter((k) => (S()[k] || '') !== cfg[k]);
+    if (changed.length) { Object.assign(S(), cfg); await saveCfg('Legal details', true); }
     const saveTenant = v.saveTenant; delete v.saveTenant; const sign = !!v.sign; delete v.sign; v._sign = sign;
-    const docs = packet === 'extension' && +v.monthly === +t.rent ? await pickDocs(P.docs) : P.docs;
-    if (!docs) return null;
+    const docs = v._docs; delete v._docs;
     try {
       for (const k of docs) {
         const { blob, missing } = await fill(k, tagsFor(k, v));
@@ -376,17 +408,20 @@
       deadline: packet === 'threeday' ? v.deadline : '', term: packet === 'extension' ? { start: v.termStart, end: v.termEnd, rent: +v.monthly } : null
     };
     const recs = [rec];
+    if (!(packet === 'lease' && saveTenant) && (v.names !== legalNames(t) || (v.salutation && v.salutation !== t.salutation))) recs.push({ ...t, legalNames: v.names, ...(v.salutation ? { salutation: v.salutation } : {}) });
     if (packet === 'lease' && saveTenant) recs.push({ ...t, leaseStart: v.termStart, leaseEnd: v.termEnd, adults: +v.adults || 0, children: +v.children || 0, parking: v.parking, maxPersons: +v.maxPersons || null, authorized: +v.authorized || null, legalNames: v.names, rent: +v.monthly || t.rent });
     await A().save(recs, { label: `Created ${P.title.toLowerCase()} for Apt ${u.number}` });
-    U.toast(`${docs.length > 1 ? 'Documents' : 'Document'} downloaded. Mark it ${P.verb} once it’s done.`, 'ok', { label: 'Mark ' + P.verb, fn: () => markDone(rec.id) });
+    const next = await U.modal({
+      title: docs.length > 1 ? 'Documents downloaded' : 'Document downloaded', size: 'md',
+      body: `<p class="dialog-text">${docs.map((k) => `<b>${U.esc(DOCS[k].title)}</b>`).join(' and ')} ${docs.length > 1 ? 'are' : 'is'} in your Downloads folder as Word ${docs.length > 1 ? 'files' : 'a file'}.</p><p class="dialog-text">${packet === 'threeday' ? `After you post or hand over the notice, mark it served with the actual date. The app checks the deadline against that date.` : `Once ${docs.length > 1 ? 'they are' : 'it is'} ${P.verb}, mark it here so the reminder is checked off.`} Until then it stays under Legal as “created, not yet ${P.verb}”.</p>`,
+      buttons: [{ label: 'Later', value: false, cls: 'btn-ghost' }, { label: `Mark ${P.verb} now`, value: true, cls: 'btn-primary' }]
+    });
+    if (next) await markDone(rec.id);
     return rec;
   }
   const monthsBetween = (a, b) => { const out = []; for (let k = U.monthKey(a); k && k <= U.monthKey(b) && out.length < 60; k = U.addMonths(k, 1)) out.push(k); return out; };
+  const cap1 = (x) => x.charAt(0).toUpperCase() + x.slice(1);
   const err = (b, msg) => { U.$('.form-err', b).textContent = msg; return undefined; };
-  async function pickDocs(list) {
-    const r = await U.modal({ title: 'Which documents?', body: `<div class="form">${list.map((k) => `<label class="check"><input type="checkbox" data-k="${k}" checked/><span>${U.esc(DOCS[k].title)}</span></label>`).join('')}<p class="small muted">The cover letter explains a rent increase. With the same rent you may only want the extension.</p></div>`, buttons: [{ label: 'Cancel', value: null, cls: 'btn-ghost' }, { label: 'Continue', cls: 'btn-primary', value: (b) => U.$$('[data-k]', b).filter((c) => c.checked).map((c) => c.dataset.k) }] });
-    return r && r.length ? r : null;
-  }
   function packetKey(packet, t, v) {
     if (packet === 'threeday') return `threeday:${t.id}:${v.month}`;
     if (packet === 'extension') return `extension:${t.id}:${v.termStart}`;
@@ -405,11 +440,34 @@
       ${r.packet === 'threeday' ? `<label class="field"><span>Witness / served upon</span><input name="witness" placeholder="Who was present or received it"/></label><p class="small muted" id="dlInfo"></p>` : ''}
       ${r.packet === 'extension' && r.term ? `<label class="check"><input type="checkbox" name="applyTerm" checked/><span>Update ${U.esc(t ? t.name : 'the tenant')}: lease ends ${U.fmtDate(r.term.end)}${r.term.rent && t && +r.term.rent !== +t.rent ? `, rent ${U.money(r.term.rent)} from ${U.fmtDate(r.term.start)}` : ''}</span></label>` : ''}
       <label class="field"><span>Notes</span><input name="notes" value="${U.esc(r.notes || '')}"/></label></form>`);
-    const info = () => { const el = U.$('#dlInfo', body); if (el) { const d = U.$('[name=date]', body).value; el.textContent = d ? `The tenant must pay or move out by ${U.fmtDate(noticeDeadline(d, 3))} (3 business days, skipping weekends and legal holidays).` : ''; } };
+    let corrected = null;
+    const printed = r.packet === 'threeday' && r.inputs ? r.inputs.deadline : '';
+    const info = () => {
+      const el = U.$('#dlInfo', body); if (!el) return;
+      const d = U.$('[name=date]', body).value; if (!d) { el.innerHTML = ''; return; }
+      const legal = noticeDeadline(d, 3);
+      let html = U.esc(explainDeadline(d));
+      if (printed && legal > printed && !(corrected && corrected.deadline === legal)) html += `<span class="callout callout-bad dl-warn">The printed notice says pay by <b>${U.fmtDate(printed)}</b>, but served on ${U.fmtDate(d)} the deadline can’t be before <b>${U.fmtDate(legal)}</b>. Print the corrected notice and serve that one instead.<br><button type="button" class="btn btn-sm btn-primary" id="dlFix">Download corrected notice</button></span>`;
+      else if (printed && legal < printed) html += `<span class="small muted dl-ok">The printed notice gives until ${U.fmtDate(printed)}, more time than required. That is fine.</span>`;
+      else if (corrected) html += '<span class="small dl-ok">Corrected notice downloaded. Serve that one.</span>';
+      el.innerHTML = html;
+    };
     body.addEventListener('change', info);
-    const v = await U.modal({ title: `Mark ${P.verb} — ${P.title}`, body, size: 'md', onOpen: info, buttons: [{ label: 'Cancel', value: null, cls: 'btn-ghost' }, { label: 'Mark ' + P.verb, cls: 'btn-primary', value: (b) => U.formValues(b) }] });
+    body.addEventListener('click', async (e) => {
+      if (e.target.id !== 'dlFix') return;
+      const d = U.$('[name=date]', body).value; const inputs = { ...r.inputs, delivery: d, deadline: noticeDeadline(d, 3), noticeDate: d < r.inputs.noticeDate ? r.inputs.noticeDate : d };
+      try { const { blob } = await fill('threeday', tagsFor('threeday', inputs)); U.download(blob, fileName('threeday', inputs)); corrected = inputs; info(); } catch (x) { U.alert('Could not create the document', U.esc(x.message)); }
+    });
+    const v = await U.modal({ title: `Mark ${P.verb} — ${P.title}`, body, size: 'md', onOpen: info, buttons: [{ label: 'Cancel', value: null, cls: 'btn-ghost' }, { label: 'Mark ' + P.verb, cls: 'btn-primary', value: async (b) => {
+      const x = U.formValues(b);
+      if (r.packet === 'threeday' && printed && noticeDeadline(x.date, 3) > printed && !(corrected && corrected.deadline === noticeDeadline(x.date, 3))) {
+        if (!(await U.confirm('The printed deadline is too early', `The notice you printed says pay by ${U.fmtDate(printed)}, which is before the legal deadline of ${U.fmtDate(noticeDeadline(x.date, 3))}. Mark it served anyway?`, 'Mark served anyway', true))) return undefined;
+      }
+      return x;
+    } }] });
     if (!v) return;
     const rec = { ...r, status: P.verb, sentDate: v.date, method: v.method, notes: v.notes, witness: v.witness || '' };
+    if (corrected) rec.inputs = corrected;
     if (r.packet === 'threeday') rec.deadline = noticeDeadline(v.date, 3);
     const recs = [rec];
     if (r.packet === 'extension' && v.applyTerm && r.term && t) {
@@ -428,6 +486,28 @@
   async function redownload(r) {
     if (!r.inputs) return U.alert('Nothing to download', 'This entry was recorded without creating documents.');
     try { for (const k of r.docs || PACKETS[r.packet].docs) { const { blob } = await fill(k, tagsFor(k, r.inputs)); U.download(blob, fileName(k, r.inputs)); await new Promise((x) => setTimeout(x, 350)); } } catch (e) { U.alert('Could not create the document', U.esc(e.message)); }
+  }
+
+  /** Add → Legal document: choose the tenant and the document, then fill it in. */
+  async function pick(preset) {
+    const today = U.todayISO();
+    const list = D.tenants.filter((t) => unitOf(t).id && (!t.moveOut || t.moveOut >= U.addDays(today, -90)))
+      .sort((a, b) => String(unitOf(a).number).localeCompare(String(unitOf(b).number), undefined, { numeric: true }) || (a.moveOut ? 1 : 0) - (b.moveOut ? 1 : 0));
+    if (!list.length) return U.alert('No tenants yet', 'Add a tenant first (Add → Tenant), then create their documents.');
+    const open = tasks(today);
+    const body = U.h(`<div class="stack">
+      <label class="field"><span>Tenant</span><select id="lpT">${list.map((t) => `<option value="${t.id}"${preset && preset.tenantId === t.id ? ' selected' : ''}>Apt ${U.esc(unitOf(t).number)} — ${U.esc(t.name)}${t.moveOut && t.moveOut < today ? ' (moved out)' : t.moveIn && t.moveIn > today ? ' (moving in)' : ''}</option>`).join('')}</select></label>
+      <span class="small muted">Document</span>
+      <div class="doc-grid" id="lpDocs"></div></div>`);
+    const draw = () => {
+      const tid = U.$('#lpT', body).value;
+      U.$('#lpDocs', body).innerHTML = Object.entries(PACKETS).map(([k, P]) => { const due = open.find((x) => x.tenant.id === tid && x.packet === k); return `<button type="button" class="doc-tile${due ? ' doc-due' : ''}" data-p="${k}"><b>${U.esc(P.title)}</b><small>${P.docs.map((d) => U.esc(DOCS[d].title)).join(' + ')}</small>${due ? `<em>${due.state === 'overdue' ? 'Overdue since' : due.state === 'due' ? 'Due' : 'Coming up'} ${U.fmtDateShort(due.due)}</em>` : ''}</button>`; }).join('');
+    };
+    body.addEventListener('change', draw);
+    body.addEventListener('click', (e) => { const b = e.target.closest('[data-p]'); if (b) U.closeModal({ packet: b.dataset.p, tenantId: U.$('#lpT', body).value }); });
+    const r = await U.modal({ title: 'Create a legal document', body, size: 'lg', onOpen: draw, buttons: [{ label: 'Cancel', value: null, cls: 'btn-ghost' }] });
+    if (r && r.packet) return create(r.packet, M.tenant(r.tenantId), null);
+    return null;
   }
 
   /** Any document for a tenant, outside of a reminder. */
@@ -474,7 +554,7 @@
     const notifOn = A().pref('notify') && typeof Notification !== 'undefined' && Notification.permission === 'granted';
     view.innerHTML = `
       <div class="page-head"><div><h1>Legal</h1><p class="lede">Leases, move-in letters, three-day notices and yearly extensions. Each document is filled in from the tenant’s details and downloads as a Word file.</p></div>
-        <div class="btn-row"><button class="btn" id="lgCal" type="button">Add reminders to my calendar</button><button class="btn" id="lgNotif" type="button">${notifOn ? 'Notifications on' : 'Turn on notifications'}</button></div></div>
+        <div class="btn-row"><button class="btn btn-primary" id="lgNew" type="button">Create a document</button><button class="btn" id="lgCal" type="button">Add reminders to my calendar</button><button class="btn" id="lgNotif" type="button">${notifOn ? 'Notifications on' : 'Turn on notifications'}</button></div></div>
       ${!S().signerName ? `<div class="callout callout-warn">Fill in the landlord, attorney and bank details once in <a href="#/settings?tab=legal">Settings → Legal</a> so the documents come out complete.</div>` : ''}
       <section><h2 class="sec-h">Needs action <span class="muted">${act.length || ''}</span></h2>
         ${act.length ? `<div class="ltasks">${act.map(card).join('')}</div>` : `<div class="card"><p class="muted">Nothing is due. Reminders appear here ${S().moveInDays} days after a move-in, ${S().noticeAfterDays} days after unpaid rent was due, and ${S().extensionDays} days before each lease anniversary.</p></div>`}</section>
@@ -484,6 +564,7 @@
         <div class="tbl-scroll"><table class="tbl"><thead><tr><th>Apt</th><th>Tenant</th><th>Lease</th><th>Deposit letter + §83.49</th><th>Next extension</th><th class="num">Notices</th></tr></thead><tbody>${rows}</tbody></table></div></section>
       <p class="small muted">These documents are your own forms filled in automatically. Have your attorney review them, especially the three-day notice, before relying on them. Reminders start from ${U.fmtDate(S().trackFrom)} (Settings → Legal).</p>`;
     U.$('#lgCal').onclick = () => calendar();
+    U.$('#lgNew').onclick = () => pick();
     U.$('#lgNotif').onclick = () => enableNotifications();
     view.onclick = (e) => {
       const b = e.target.closest('[data-a]');
@@ -597,7 +678,10 @@
         <p class="small muted">The standard templates are public on GitHub, so they carry no signatures and no account numbers. To print a scanned signature automatically, add it to your own copy and upload that here. The standard templates are your documents with blanks the app fills in, such as {tenants_caps}, {apt} and {amount}. To change the wording, download one, edit it in Word keeping the {…} fields, and replace it here. Your version is stored encrypted and syncs to your other devices.</p>
         <table class="tbl tbl-tight"><tbody>${tplRows}</tbody></table></section>`;
     wireSignatures(el);
-    U.$('#legalForm', el).onsubmit = async (e) => { e.preventDefault(); const v = U.formValues(e.target); Object.assign(S(), v, { moveInDays: +v.moveInDays || 5, noticeAfterDays: +v.noticeAfterDays || 3, extensionDays: +v.extensionDays || 30 }); await A().saveSettings({}, 'Legal settings'); U.toast('Legal settings saved.', 'ok'); };
+    const store = (v) => Object.assign(S(), v, { moveInDays: +v.moveInDays || 5, noticeAfterDays: +v.noticeAfterDays || 3, extensionDays: +v.extensionDays || 30 });
+    const form = U.$('#legalForm', el);
+    form.addEventListener('change', () => { store(U.formValues(form)); saveCfg('Legal settings', true); });
+    form.onsubmit = async (e) => { e.preventDefault(); store(U.formValues(form)); await saveCfg('Legal settings'); U.toast('Legal settings saved. They are kept for every document.', 'ok'); };
     el.onclick = async (e) => {
       const dl = e.target.closest('[data-tdl]'); if (dl) { const bytes = await templateBytes(dl.dataset.tdl); U.download(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }), 'template - ' + DOCS[dl.dataset.tdl].file); }
       const up = e.target.closest('[data-tup]'); if (up) {
@@ -615,7 +699,7 @@
   function wireSignatures(el) {
     const card = U.$('#sigCard', el); if (!card) return;
     SIG_FONTS.forEach(([id]) => loadSigFont(id).catch(() => null));
-    const save = U.debounce(() => A().saveSettings({}, 'Signatures'), 600);
+    const save = U.debounce(() => saveCfg('Signatures', true), 600);
     const preview = async (box) => {
       const role = box.dataset.role; const pv = U.$('[data-preview]', box);
       const url = await signatureFor(role).catch(() => null);
@@ -643,7 +727,6 @@
 
   /* ---------------- start-up ---------------- */
   function onUnlock() {
-    if (!D.settings.legal) { S(); A().save(D.settings, { silent: true, noRender: true }); }
     // rent increases that start in the future take effect on their date
     const today = U.todayISO();
     const ups = D.tenants.filter((t) => t.pendingRent && t.pendingRent.from <= today).map((t) => ({ ...t, rent: t.pendingRent.rent, pendingRent: null }));
@@ -653,5 +736,5 @@
   }
 
   Object.assign((global.__pages = global.__pages || {}), { legal: page });
-  global.Legal = { typedSignature, signatureFor, DOCS, PACKETS, tasks, actionable, create, markDone, tenantDocs, badges, bellMenu, notifyNow, calendar, settingsTab, onUnlock, noticeDeadline, amountWords, words, holidays, fill, tagsFor, inputsFor, statusChip };
+  global.Legal = { cfg: () => S(), pick, explainDeadline, typedSignature, signatureFor, DOCS, PACKETS, tasks, actionable, create, markDone, tenantDocs, badges, bellMenu, notifyNow, calendar, settingsTab, onUnlock, noticeDeadline, amountWords, words, holidays, fill, tagsFor, inputsFor, statusChip };
 })(window);

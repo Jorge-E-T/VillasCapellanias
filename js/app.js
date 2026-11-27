@@ -94,6 +94,7 @@
         case 'bills': return `Recurring bill ${r.name}`;
         case 'accounts': return `Account ${r.name}`;
         case 'settings': return 'Settings';
+        case 'legalcfg': return 'Legal details (landlord, attorney, bank)';
         case 'legal': return `Legal: ${(global.Legal && Legal.PACKETS[r.packet] ? Legal.PACKETS[r.packet].title : r.packet)} (${r.status}) · ${M.unitLabel(r.unitId)}`;
         default: return r._c;
       }
@@ -396,7 +397,7 @@
       qm.addEventListener('click', (e) => {
         const b = e.target.closest('[data-quick]'); if (!b) return; qm.classList.add('hidden');
         const F = global.Forms;
-        ({ payment: () => F.payment(), batch: () => F.batch(), expense: () => F.txn({ type: 'expense' }), income: () => F.txn({ type: 'income' }), tenant: () => F.tenant(), legal: () => App.go('legal'), asset: () => F.asset(), liability: () => F.liability() })[b.dataset.quick]();
+        ({ payment: () => F.payment(), batch: () => F.batch(), expense: () => F.txn({ type: 'expense' }), income: () => F.txn({ type: 'income' }), tenant: () => F.tenant(), legal: () => global.Legal.pick(), asset: () => F.asset(), liability: () => F.liability() })[b.dataset.quick]();
       });
       window.addEventListener('hashchange', () => App.route());
       document.addEventListener('click', (e) => { if (document.body.classList.contains('nav-open') && !e.target.closest('#side') && !e.target.closest('#btnMenu')) document.body.classList.remove('nav-open'); });
