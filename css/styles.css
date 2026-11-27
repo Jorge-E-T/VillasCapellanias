@@ -497,3 +497,45 @@ details summary { cursor: pointer; color: var(--muted); }
 .unit-card.uc-late::before { background: var(--st-late); }
 .unit-card.uc-due::before { background: var(--sand); }
 .unit-card.uc-exempt::before { background: var(--st-exempt); }
+
+/* legal */
+.sec-h { font: 400 19px var(--f-display); margin: 6px 0 10px; display: flex; gap: 8px; align-items: baseline; }
+.ltasks { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+.ltask { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin: 0; border-left: 3px solid var(--line-2); }
+.ltask.ls-overdue { border-left-color: var(--bloom); } .ltask.ls-due { border-left-color: var(--st-partial); } .ltask.ls-upcoming { border-left-color: var(--st-exempt); }
+.lt-main { display: flex; gap: 16px; flex: 1 1 420px; min-width: 0; }
+.lt-main h3 { font: 600 15.5px var(--f-body); }
+.lt-due { display: flex; flex-direction: column; min-width: 92px; font-size: 12px; color: var(--muted); }
+.lt-due b { font: 400 20px var(--f-display); color: var(--ink); }
+.ls-overdue .lt-due { color: var(--bloom); }
+.lt-act { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.doc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.doc-tile { text-align: left; border: 1px solid var(--line-2); background: var(--card); border-radius: var(--radius); padding: 12px 14px; cursor: pointer; font: inherit; color: var(--ink); display: flex; flex-direction: column; gap: 3px; }
+.doc-tile:hover { border-color: var(--palm-3); background: var(--sunk); }
+.doc-tile small { color: var(--muted); }
+.legal-form .span2 { grid-column: 1 / -1; }
+.legal-form .field small { font-size: 12px; }
+.card-head.pad { padding: 16px 20px 0; }
+.bell { position: relative; }
+.bell-count { position: absolute; top: 2px; right: 1px; background: var(--bloom); color: #fff; font: 700 10.5px var(--f-body); border-radius: 9px; min-width: 17px; height: 17px; line-height: 17px; text-align: center; padding: 0 4px; }
+.bell-menu { position: absolute; right: 0; top: calc(100% + 6px); width: 340px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); z-index: 30; padding: 6px; }
+.bell-head { display: flex; justify-content: space-between; padding: 6px 8px 8px; border-bottom: 1px solid var(--line); margin-bottom: 4px; font-size: 14px; }
+.bell-item { display: flex; flex-direction: column; padding: 8px 10px; border-radius: 6px; text-decoration: none; color: var(--ink); border-left: 3px solid transparent; }
+.bell-item:hover { background: var(--sunk); }
+.bell-item.ls-overdue { border-left-color: var(--bloom); } .bell-item.ls-due { border-left-color: var(--st-partial); }
+.bell-item small { color: var(--muted); }
+.pad { padding: 8px 10px; }
+@media (max-width: 640px) { .doc-grid { grid-template-columns: 1fr; } .bell-menu { position: fixed; left: 8px; right: 8px; top: 56px; width: auto; } }
+
+/* signatures */
+.sig-roles { display: grid; gap: 14px; }
+.sig-role { border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; display: grid; gap: 10px; }
+.sig-head { display: flex; flex-direction: column; }
+.sig-fonts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+.sig-font { border: 1px solid var(--line-2); background: #fff; color: #1b2a4e; border-radius: 8px; padding: 10px 8px; font-size: 26px; line-height: 1.2; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sig-font.on { border-color: var(--palm-2); box-shadow: 0 0 0 2px color-mix(in srgb, var(--palm-3) 45%, transparent); }
+.sig-image { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.sig-preview { display: flex; gap: 12px; align-items: center; }
+.sig-box { background: #fff; border: 1px dashed var(--line-2); border-radius: 8px; min-height: 76px; min-width: 260px; display: grid; place-items: center; padding: 8px 14px; }
+.sig-box img { max-height: 70px; max-width: 320px; }
+@media (max-width: 640px) { .sig-fonts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
