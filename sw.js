@@ -1,7 +1,7 @@
 /* Service worker: lets the app open offline and be installed on phones.
    Network first: online you always get the newest files; offline the last copy is used.
    Records are never stored here; they stay encrypted in the browser's database. */
-const CACHE = 'vc-shell-v7';
+const CACHE = 'vc-shell-v8';
 const SHELL = [
   './', './index.html', './manifest.webmanifest', './css/styles.css', './vc.png',
   './js/utils.js', './js/store.js', './js/model.js', './js/charts.js', './js/importer.js', './js/sync.js', './js/forms.js',
