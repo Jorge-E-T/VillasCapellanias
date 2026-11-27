@@ -15,6 +15,7 @@ A private, password-protected app for keeping the books of **Villas Capellanias*
 - **Assets** — bank accounts (balance from a statement plus everything recorded since), the building, land and equipment, with straight-line depreciation.
 - **Liabilities** — mortgages and loans (amortization schedule, yearly interest) and tenants' security deposits held.
 - **Vendors** — contacts, totals per year, W-9 and 1099 hints (threshold $600 through 2025, $2,000 from 2026).
+- **Legal** — the family's own lease, Rules and Regulations, security deposit letter, §83.49 notice, three-day notice, extension of lease and new-lease cover letter, filled in from each tenant's record and downloaded as Word files. Keeps track of what is due (deposit letter + §83.49 within 5 days of move-in, three-day notice 3 days after unpaid rent, extension 30 days before each anniversary), what was sent, served or signed, and the 3-business-day deadline (weekends and holidays skipped). Reminders: the bell, phone/computer notifications, and a calendar file with alerts.
 - **Reports** — income statement by month, balance sheet, rent roll, rent by month, by unit, paid for others, Schedule E summary, budget vs actual and the security deposit register. Each report prints or saves as a branded PDF, and everything downloads as one formatted Excel workbook.
 - **Import** — reads the family's *Income & Expense Worksheet* (RENTAL BY MONTH + GENERAL LEDGER) with a preview, matches per-apartment charges to ledger lines, splits combined payments and flags uncertain lines. Re-importing only adds what's new.
 - **Safety** — AES-256 encryption of every record, auto-lock, recovery key and security questions, encrypted backups, automatic snapshots before imports and restores, undo, and a full change history with who did what.
@@ -46,11 +47,13 @@ js/pages.js                overview, units, rent, ledger, review
 js/pages-books.js          bills, assets, liabilities, vendors
 js/reports.js              reports, printing, Excel export
 js/settings.js             settings, import / backup / restore, security, help
+js/legal.js                legal documents, deadlines, reminders, notifications, calendar file
+templates/*.docx           Word templates with {fields}; no signatures or account numbers
 js/app.js                  lock screen, saving, navigation, search
 firebase-config.js         your Firebase web settings (fill in once)
 firestore.rules.template   Firestore security rules to paste into Firebase
-lib/                       ExcelJS 4.4.0 (MIT), Firebase JS SDK (compat), vendored for offline use
-fonts/                     Marcellus and Source Sans 3 (SIL Open Font License)
+lib/                       ExcelJS 4.4.0 (MIT), JSZip 3.10.1 (MIT), Firebase JS SDK (compat), vendored for offline use
+fonts/                     Marcellus and Source Sans 3 (SIL Open Font License); fonts/signatures/ eight handwriting fonts (OFL; Homemade Apple under Apache 2.0)
 sw.js, manifest.webmanifest, icons/   installable app and offline support
 ```
 
