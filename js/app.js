@@ -26,7 +26,7 @@
 
     /* ---------- lazy-load big libraries (Excel / PDF) ---------- */
     loadLib(name) {
-      const src = { excel: 'lib/exceljs.min.js' }[name];
+      const src = { excel: 'lib/exceljs.min.js', zip: 'lib/jszip.min.js' }[name];
       if (App.libs[name]) return App.libs[name];
       App.libs[name] = new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('Could not load ' + src + '. Check your connection and reload.')); document.head.appendChild(s); });
       return App.libs[name];
@@ -94,6 +94,7 @@
         case 'bills': return `Recurring bill ${r.name}`;
         case 'accounts': return `Account ${r.name}`;
         case 'settings': return 'Settings';
+        case 'legal': return `Legal: ${(global.Legal && Legal.PACKETS[r.packet] ? Legal.PACKETS[r.packet].title : r.packet)} (${r.status}) · ${M.unitLabel(r.unitId)}`;
         default: return r._c;
       }
     },
@@ -213,6 +214,7 @@
       App.route();
       if (isNew) await App.securitySetup(true);
       global.Sync && Sync.unlocked(App.password);
+      global.Legal && Legal.onUnlock();
       App.checkBanner();
     },
     async askName() {
@@ -306,6 +308,7 @@
       const view = $('#view');
       U.$$('#nav a').forEach((a) => a.classList.toggle('on', a.dataset.page === App.page));
       const n = M.reviewQueue().length; const b = $('#reviewBadge'); b.textContent = n; b.classList.toggle('hidden', !n);
+      try { global.Legal && Legal.badges(); } catch (e) { console.warn(e); }
       const y = view.scrollTop, x = window.scrollY;
       const focusId = document.activeElement && view.contains(document.activeElement) ? document.activeElement.id : null;
       view.onclick = null; view.onkeydown = null; view.onchange = null;
@@ -341,7 +344,7 @@
       q = U.norm(q).trim(); if (q.length < 2) return [];
       const out = [];
       const add = (kind, label, sub, go) => out.push({ kind, label, sub, go });
-      const pages = [['overview', 'Overview'], ['units', 'Units & tenants'], ['rent', 'Rent'], ['ledger', 'Income & expenses'], ['review', 'Needs review'], ['bills', 'Recurring bills'], ['assets', 'Assets'], ['liabilities', 'Liabilities'], ['vendors', 'Vendors'], ['reports', 'Reports'], ['settings', 'Settings'], ['help', 'Help']];
+      const pages = [['legal', 'Legal'], ['overview', 'Overview'], ['units', 'Units & tenants'], ['rent', 'Rent'], ['ledger', 'Income & expenses'], ['review', 'Needs review'], ['bills', 'Recurring bills'], ['assets', 'Assets'], ['liabilities', 'Liabilities'], ['vendors', 'Vendors'], ['reports', 'Reports'], ['settings', 'Settings'], ['help', 'Help']];
       pages.forEach(([p, l]) => { if (U.norm(l).includes(q)) add('Page', l, '', () => App.go(p)); });
       M.D.units.forEach((u) => { if (('unit ' + u.number).includes(q) || String(u.number) === q) add('Unit', 'Unit ' + u.number, (M.currentTenant(u.id) || {}).name || 'Vacant', () => App.go('units', { id: u.id })); });
       M.D.tenants.forEach((t) => { if (U.norm([t.name, t.phone, t.email, t.otherContact].join(' ')).includes(q)) add('Tenant', t.name, M.unitLabel(t.unitId) + (t.moveOut ? ' · moved out' : ''), () => App.go('units', { id: t.unitId })); });
@@ -384,13 +387,16 @@
         const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
         document.documentElement.setAttribute('data-theme', cur); try { localStorage.setItem('vc-theme', cur); } catch (_) { /* ignore */ }
       };
+      $('#btnBell').onclick = (e) => { e.stopPropagation(); global.Legal && Legal.bellMenu(); };
+      document.addEventListener('click', (e) => { const bm = $('#bellMenu'); if (bm && !bm.contains(e.target) && !e.target.closest('#btnBell')) bm.classList.add('hidden'); if (e.target.closest('#bellMenu a')) bm.classList.add('hidden'); });
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('#bellMenu').classList.add('hidden'); });
       const qb = $('#btnQuick'), qm = $('#quickMenu');
       qb.onclick = (e) => { e.stopPropagation(); qm.classList.toggle('hidden'); };
       document.addEventListener('click', (e) => { if (!qm.contains(e.target)) qm.classList.add('hidden'); });
       qm.addEventListener('click', (e) => {
         const b = e.target.closest('[data-quick]'); if (!b) return; qm.classList.add('hidden');
         const F = global.Forms;
-        ({ payment: () => F.payment(), batch: () => F.batch(), expense: () => F.txn({ type: 'expense' }), income: () => F.txn({ type: 'income' }), tenant: () => F.tenant(), asset: () => F.asset(), liability: () => F.liability() })[b.dataset.quick]();
+        ({ payment: () => F.payment(), batch: () => F.batch(), expense: () => F.txn({ type: 'expense' }), income: () => F.txn({ type: 'income' }), tenant: () => F.tenant(), legal: () => App.go('legal'), asset: () => F.asset(), liability: () => F.liability() })[b.dataset.quick]();
       });
       window.addEventListener('hashchange', () => App.route());
       document.addEventListener('click', (e) => { if (document.body.classList.contains('nav-open') && !e.target.closest('#side') && !e.target.closest('#btnMenu')) document.body.classList.remove('nav-open'); });

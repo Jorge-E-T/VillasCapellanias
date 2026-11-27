@@ -8,7 +8,7 @@
   const D = M.D;
   const A = () => global.App;
 
-  const TABS = [['property', 'Property'], ['categories', 'Categories & budgets'], ['entities', 'Paid for'], ['data', 'Import & backups'], ['security', 'Password & security'], ['cloud', 'Cloud sync'], ['activity', 'History']];
+  const TABS = [['property', 'Property'], ['categories', 'Categories & budgets'], ['entities', 'Paid for'], ['data', 'Import & backups'], ['legal', 'Legal'], ['security', 'Password & security'], ['cloud', 'Cloud sync'], ['activity', 'History']];
 
   function page(view, p) {
     const tab = p.tab || 'property';
@@ -17,7 +17,7 @@
       <div id="setBody"></div>`;
     view.onclick = (e) => { const b = e.target.closest('[data-tab]'); if (b) A().go('settings', { tab: b.dataset.tab }); };
     const body = U.$('#setBody');
-    ({ property, categories, entities, data, security, cloud, activity })[tab](body);
+    ({ property, categories, entities, data, security, cloud, activity, legal: (b) => global.Legal.settingsTab(b) })[tab](body);
   }
 
   /* ---------------- property ---------------- */
@@ -285,6 +285,7 @@
     view.innerHTML = `<div class="page-head"><div><h1>Help</h1><p class="lede">How the app is organized, and the jobs you’ll do most.</p></div></div>
       <div class="help-grid">
       ${s('Every month', `<ol><li><b>Record rent</b> as checks arrive: the <b>Add</b> button → Rent payment, or click a window on the Overview, or a cell in Rent. For a bank deposit with several checks, use <b>Bank deposit</b>: one line per check.</li><li><b>Record expenses</b> from the bank statement: Add → Expense. Choose the category, and set <b>Paid for</b> when the building account paid someone else’s bill.</li><li>Open <b>Needs review</b> and settle anything flagged.</li><li>On <b>Recurring bills</b>, check nothing is overdue.</li><li>Download a <b>backup</b> (Settings → Import &amp; backups).</li></ol>`)}
+      ${s('Legal documents and reminders', `<ul><li><b>Legal</b> lists what is due: the <b>lease and rules</b> for a new tenant, the <b>security deposit letter and §83.49</b> within ${(D.settings.legal || {}).moveInDays || 5} days of move-in, a <b>three-day notice</b> when rent is unpaid ${(D.settings.legal || {}).noticeAfterDays || 3} days after it was due, and an <b>extension of lease</b> ${(D.settings.legal || {}).extensionDays || 30} days before each lease anniversary.</li><li><b>Create documents</b> fills in your Word forms from the tenant’s record; check the details, download, print. Then click <b>Mark sent / served / signed</b> so the reminder clears. Marking an extension signed updates the lease end date and the new rent.</li><li>The three-day deadline skips weekends and legal holidays. One notice covers every unpaid month. Only rent goes in it, not late fees.</li><li>Reminders appear under the bell at the top. <b>Turn on notifications</b> shows them as phone or computer alerts while the app is open, and <b>Add reminders to my calendar</b> puts them in your calendar so they alert you even when the app is closed.</li><li>Fill in the landlord, attorney and bank details once in Settings → Legal.</li><li><b>Signatures</b> (Settings → Legal): type a name in a handwriting style or upload a photo of a real signature. It is added to the three-day notice (attorney), the security deposit letter (Lessor) and the cover letter (landlord). Leases and extensions are signed by hand in front of witnesses.</li></ul>`)}
       ${s('Rent status colors', '<ul><li><b>Green</b> paid in full · <b>amber</b> partly paid · <b>sand</b> not due yet, or due within the grace days · <b>bougainvillea</b> late · <b>grey</b> vacant · <b>blue-grey</b> no rent due (for example the on-site manager).</li><li>Rent counts toward the month it is <i>for</i> on the rent grid, and toward the month it was <i>received</i> in the income statement.</li></ul>')}
       ${s('Assets, liabilities and equity', '<ul><li><b>Assets</b>: bank accounts (starting balance plus everything recorded since), the building, land and equipment at cost less depreciation.</li><li><b>Liabilities</b>: mortgages and loans, and every tenant’s security deposit (it is the tenant’s money).</li><li><b>Equity</b> is what is left: assets minus liabilities. See Reports → Balance sheet.</li></ul>')}
       ${s('Paid for: building vs others', '<p>The old ledger split payments between TLP, LCDLT, Vivian, Jorge and Mom. The app keeps that: each expense has a <b>Paid for</b>. Only the building’s share is in the income statement and Schedule E; the rest is in Reports → Paid for others, so your accountant can treat it as owner draws or money owed back.</p>')}

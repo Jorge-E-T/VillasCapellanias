@@ -191,6 +191,9 @@
         <div class="row2">${fld('Name(s) on the lease', inp('name', t.name, 'placeholder="e.g. Oscar Gonzalez and Damaris Rosales"'))}${fld('Unit', sel('unitId', unitOpts(), t.unitId, 'Choose…'))}</div>
         <div class="row3">${fld('Phone', inp('phone', t.phone, 'inputmode="tel"'))}${fld('Second phone', inp('phone2', t.phone2, 'inputmode="tel"'))}${fld('Email', inp('email', t.email, 'type="email"'))}</div>
         ${fld('Emergency or other contact', inp('otherContact', t.otherContact, 'placeholder="Name and phone"'))}
+        <h3 class="form-h">Lease details (used to fill in legal documents)</h3>
+        <div class="row3">${fld('Lease start (original lease date)', date('leaseStart', t.leaseStart || ''))}${fld('Names on legal documents', inp('legalNames', t.legalNames, 'placeholder="e.g. JOEL RODRIGUEZ AND JUDITH PABA RODRIGUEZ"'))}${fld('Letter greeting (Dear …)', inp('salutation', t.salutation, 'placeholder="e.g. Mr. Ominami"'))}</div>
+        <div class="row3">${fld('Adults', inp('adults', t.adults ?? '', 'type="number" min="0"'))}${fld('Children', inp('children', t.children ?? '', 'type="number" min="0"'))}${fld('Parking space No.', inp('parking', t.parking))}</div>
         <div class="row3">${fld('Monthly rent', money('rent', t.rent))}${fld('Rent due on day', inp('dueDay', t.dueDay, 'type="number" min="1" max="28"'))}${fld('Lease ends', date('leaseEnd', t.leaseEnd))}</div>
         <div class="row3">${fld('Moved in', date('moveIn', t.moveIn))}${fld('Moved out', date('moveOut', t.moveOut))}<div class="field">${chk('exempt', t.exempt, 'No rent is due (e.g. on-site manager)')}</div></div>
         ${isNew ? `<div class="row2">${fld('Security deposit received', money('depAmount', null))}${fld('Deposit date', date('depDate', t.moveIn))}</div>` : dep ? `<p class="small muted">Security deposit on file: ${U.money(dep.amount)}${dep.date ? ' received ' + U.fmtDate(dep.date) : ''}. Edit it from the unit page.</p>` : ''}

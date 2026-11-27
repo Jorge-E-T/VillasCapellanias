@@ -225,7 +225,8 @@
             <div><dt>Lease ends</dt><dd>${t.leaseEnd ? U.fmtDate(t.leaseEnd) : 'Month to month / not recorded'}</dd></div>
             <div><dt>Owes</dt><dd class="${bal ? 'c-late' : ''}">${bal ? U.money(bal) : 'Nothing past due'}</dd></div>
           </dl>${t.notes ? `<p class="small">${U.esc(t.notes)}</p>` : ''}
-          <div class="btn-row"><button class="btn btn-sm btn-ghost" id="udMoveOut" type="button">Move out…</button></div>` : `<p class="muted">No one is living here${upcoming ? `. ${U.esc(upcoming.name)} moves in ${U.fmtDate(upcoming.moveIn)}.` : '.'}</p>`}
+          <div class="btn-row"><button class="btn btn-sm" id="udLegal" type="button">Legal documents</button><button class="btn btn-sm btn-ghost" id="udMoveOut" type="button">Move out…</button></div>
+          ${(() => { const open = global.Legal ? Legal.tasks().filter((x) => x.tenant.id === t.id && x.state !== 'upcoming') : []; return open.length ? `<div class="callout callout-warn small">${open.map((x) => `${U.esc(x.title.split(' — ')[0])}: ${x.state === 'overdue' ? 'overdue since' : 'due'} ${U.fmtDate(x.due)}`).join('<br>')} · <a href="#/legal">Legal</a></div>` : ''; })()}` : `<p class="muted">No one is living here${upcoming ? `. ${U.esc(upcoming.name)} moves in ${U.fmtDate(upcoming.moveIn)}.` : '.'}</p>`}
         </div>
         <div class="card">
           <div class="card-head"><h2>Security deposit</h2><button class="btn btn-sm" id="udDep" type="button">Add deposit</button></div>
@@ -253,6 +254,7 @@
     U.$('#udYear').onchange = (e) => A().go('units', { id: u.id, y: e.target.value });
     if (t) {
       U.$('#udEditT').onclick = () => F().tenant(t);
+      U.$('#udLegal').onclick = () => global.Legal.tenantDocs(t);
       U.$('#udMoveOut').onclick = async () => {
         const d = await U.prompt('Move out ' + t.name, 'Move-out date', { type: 'date', value: U.todayISO(), okLabel: 'Set move-out date', note: 'Their history stays with the unit. Afterwards, record the security deposit refund from the deposit card.' });
         if (d) await A().save({ ...t, moveOut: d }, { label: `${t.name} moved out of unit ${u.number}` });

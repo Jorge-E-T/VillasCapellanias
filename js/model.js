@@ -8,7 +8,7 @@
   'use strict';
   const U = global.U;
 
-  const COLLECTIONS = ['units', 'tenants', 'payments', 'txns', 'deposits', 'assets', 'liabilities', 'vendors', 'bills', 'accounts', 'files', 'activity'];
+  const COLLECTIONS = ['units', 'tenants', 'payments', 'txns', 'deposits', 'assets', 'liabilities', 'vendors', 'bills', 'accounts', 'files', 'activity', 'legal'];
 
   /* Schedule E (Form 1040), Part I lines used for rental real estate */
   const SCHED_E = {
