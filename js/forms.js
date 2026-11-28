@@ -228,7 +228,8 @@
 
     /* ---------------- unit ---------------- */
     async unit(u) {
-      const isNew = !u;
+      if (!u) return; // the building has a fixed set of 15 units: they can be edited, not added
+      const isNew = false;
       u = u ? { ...u } : { _c: 'units', number: '', beds: 2, baths: 1 };
       const body = U.h(`<form class="form" autocomplete="off">
         <div class="row3">${fld('Unit number', inp('number', u.number, 'inputmode="numeric"'))}${fld('Floor', inp('floor', u.floor ?? (u.number ? String(u.number)[0] : ''), 'type="number"'))}${fld('Square feet', inp('sqft', u.sqft, 'type="number"'))}</div>
@@ -238,7 +239,7 @@
         <p class="form-err lock-error"></p></form>`);
       const r = await U.modal({
         title: isNew ? 'Add unit' : 'Edit unit ' + u.number, body, size: 'md',
-        buttons: [...delBtn(u, 'unit ' + u.number, async () => !D.tenants.some((t) => t.unitId === u.id) || (U.alert('Unit has tenants', 'Delete or move its tenants first.'), false)), { label: 'Cancel', value: null, cls: 'btn-ghost' }, {
+        buttons: [{ label: 'Cancel', value: null, cls: 'btn-ghost' }, {
           label: isNew ? 'Add unit' : 'Save changes', cls: 'btn-primary', value: (b) => {
             const v = U.formValues(b);
             if (!v.number) return err(b, 'Enter the unit number.');

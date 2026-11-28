@@ -84,11 +84,10 @@
     if (!D.units.length) {
       view.innerHTML = `<div class="page-head"><h1>Welcome to ${U.esc(D.settings.propertyName)}</h1></div>
       <div class="welcome card"><div><h2>Start with your records</h2><p>Bring in the units, tenants, deposits, rent and the general ledger from your Excel workbook in one step. You will see a preview before anything is saved.</p>
-      <div class="btn-row"><button class="btn btn-primary" id="wImport" type="button">Import the Excel workbook</button><button class="btn" id="wRestore" type="button">Restore a backup file</button><button class="btn btn-ghost" id="wManual" type="button">Add units by hand</button></div>
+      <div class="btn-row"><button class="btn btn-primary" id="wImport" type="button">Import the Excel workbook</button><button class="btn" id="wRestore" type="button">Restore a backup file</button></div>
       <p class="small muted">Using several devices? Set up cloud sync on the first one, then just sign in on the others (Settings → Cloud sync).</p></div>${facade(Array.from({ length: 15 }, (_, i) => ({ unit: { id: '', number: String(200 + Math.floor(i / 5) * 100 + (i % 5) + 1), floor: 2 + Math.floor(i / 5) }, status: 'vacant', tenant: null, expected: 0, paid: 0 })))}</div>`;
       U.$('#wImport').onclick = () => global.Settings.importWorkbook();
       U.$('#wRestore').onclick = () => global.Settings.restore();
-      U.$('#wManual').onclick = () => F().unit();
       return;
     }
     const roll = M.rentRoll(key);
@@ -181,7 +180,7 @@
     const leasesSoon = D.tenants.filter((t) => !t.moveOut && t.leaseEnd && t.leaseEnd >= U.todayISO() && t.leaseEnd <= U.addDays(U.todayISO(), 75));
     view.innerHTML = `
       <div class="page-head"><div><h1>Units &amp; tenants</h1><p class="lede">Status for ${U.monthLabel(key, true)} · ${roll.filter((s) => s.tenant).length} of ${D.units.length} occupied · scheduled rent ${U.money0(totalRent)} a month · deposits held ${U.money0(M.depositsHeld())}</p></div>
-      <div class="btn-row"><button class="btn" id="uAddUnit" type="button">Add unit</button><button class="btn btn-primary" id="uAddTen" type="button">Add tenant</button></div></div>
+      <div class="btn-row"><button class="btn btn-primary" id="uAddTen" type="button">Add tenant</button></div></div>
       ${leasesSoon.length ? `<div class="callout callout-warn">Leases ending in the next 75 days: ${leasesSoon.map((t) => `<a href="#/units?id=${t.unitId}">${M.unitLabel(t.unitId)} (${U.esc(t.name)}, ${U.fmtDate(t.leaseEnd)})</a>`).join(' · ')}</div>` : ''}
       ${D.units.length ? Object.keys(floors).sort((a, b) => b - a).map((f) => `<h2 class="floor-h">Floor ${U.esc(f)}</h2><div class="unit-grid">${floors[f].map((s) => {
         const t = s.tenant; const bal = t ? M.tenantBalance(t) : 0;
@@ -191,8 +190,7 @@
           <p class="uc-name">${t ? U.esc(t.name) : '<span class="muted">Vacant</span>'}</p>
           <dl><div><dt>Rent</dt><dd>${t ? (t.exempt ? 'None' : U.money0(t.rent)) : '—'}</dd></div><div><dt>Due</dt><dd>${t && !t.exempt ? ordinal(t.dueDay) : '—'}</dd></div><div><dt>Deposit</dt><dd>${dep ? U.money0(dep) : '—'}</dd></div></dl>
           <p class="uc-foot">${U.esc(s.unit.size || '')}${t && t.moveIn ? ' · since ' + new Date(U.parseISO(t.moveIn)).getFullYear() : ''}${bal ? ` · <span class="c-late">owes ${U.money0(bal)}</span>` : ''}</p></a>`;
-      }).join('')}</div>`).join('') : empty('No units yet', 'Import your workbook from Settings, or add the units one by one.', '<button class="btn btn-primary" id="uImp" type="button">Import the Excel workbook</button>')}`;
-    U.$('#uAddUnit').onclick = () => F().unit();
+      }).join('')}</div>`).join('') : empty('No units yet', 'Import your workbook from Settings to load the 15 units.', '<button class="btn btn-primary" id="uImp" type="button">Import the Excel workbook</button>')}`;
     U.$('#uAddTen').onclick = () => F().tenant();
     const imp = U.$('#uImp'); if (imp) imp.onclick = () => global.Settings.importWorkbook();
   }
