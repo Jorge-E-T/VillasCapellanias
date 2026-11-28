@@ -91,7 +91,15 @@
   function noticeDeadline(deliveryISO, n = 3) { let d = deliveryISO, k = 0; while (k < n) { d = U.addDays(d, 1); if (isBusiness(d)) k++; } return d; }
 
   /* ---------------- tenants ---------------- */
-  const legalNames = (t) => caps(t.legalNames || t.name);
+  /** "A / B & C," → "A, B and C": one list style for every document, no stray commas. */
+  const SUFFIX = /^(JR|SR|II|III|IV|ESQ)\.?$/i;
+  function joinNames(s) {
+    const parts = String(s || '').split(/\s*(?:\/|&|;|\n|,|\band\b)\s*/i).map((x) => x.trim()).filter(Boolean);
+    const names = [];
+    for (const p of parts) { if (SUFFIX.test(p) && names.length) names[names.length - 1] += ', ' + p; else names.push(p); }
+    return names.length < 2 ? names.join('') : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+  }
+  const legalNames = (t) => caps(joinNames(t.legalNames || t.name));
   const leaseStart = (t) => t.leaseStart || t.moveIn || '';
   const unitOf = (t) => M.unit(t.unitId) || {};
   const recordsFor = (key) => D.legal.filter((r) => r.key === key);
@@ -269,7 +277,7 @@
   function common(v) {
     const s = S();
     return {
-      tenants_caps: caps(v.names), apt: v.apt,
+      tenants_caps: caps(joinNames(v.names)), apt: v.apt,
       landlord_name: s.landlordName, landlord_street: s.landlordStreet, landlord_city: s.landlordCity, landlord_phone: s.landlordPhone, landlord_fax: s.landlordFax ? s.landlordFax + ' (Facsimile)' : '',
       lessor_street: s.lessorStreet, lessor_city: s.lessorCity, signer_caps: caps(s.signerName), signer_title: s.signerTitle,
       payment_address: s.paymentAddress, attorney_name: s.attorneyName, attorney_street: s.attorneyStreet, attorney_city: s.attorneyCity, attorney_phone: s.attorneyPhone,
